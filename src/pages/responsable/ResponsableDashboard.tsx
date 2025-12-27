@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -6,38 +6,68 @@ import { StatsCard } from '@/components/common/StatsCard';
 import { DataTable } from '@/components/common/DataTable';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
-import { mockBooks, mockEmprunts, mockCategories } from '@/data/mockData';
-import { BookOpen, FolderOpen, ClipboardList, AlertTriangle, Plus } from 'lucide-react';
-import { Emprunt } from '@/types';
+import { booksAPI, empruntsAPI, categoriesAPI } from '@/lib/api';
+import { BookOpen, FolderOpen, ClipboardList, AlertTriangle, Plus, Loader2 } from 'lucide-react';
+import { Emprunt, Book, Category } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const ResponsableDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [books, setBooks] = useState<Book[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [emprunts, setEmprunts] = useState<Emprunt[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [booksRes, categoriesRes, empruntsRes] = await Promise.all([
+        booksAPI.getAll(),
+        categoriesAPI.getAll(),
+        empruntsAPI.getAll(),
+      ]);
+      setBooks(booksRes.data);
+      setCategories(categoriesRes.data);
+      setEmprunts(empruntsRes.data);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch data',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const stats = [
     {
       title: 'Total Books',
-      value: mockBooks.length,
+      value: books.length,
       icon: BookOpen,
-      trend: { value: 8, isPositive: true },
     },
     {
       title: 'Categories',
-      value: mockCategories.length,
+      value: categories.length,
       icon: FolderOpen,
     },
     {
       title: 'Active Emprunts',
-      value: mockEmprunts.filter((e) => e.status === 'EN_COURS').length,
+      value: emprunts.filter((e) => e.status === 'EN_COURS').length,
       icon: ClipboardList,
     },
     {
       title: 'Overdue',
-      value: mockEmprunts.filter((e) => e.status === 'EN_RETARD').length,
+      value: emprunts.filter((e) => e.status === 'EN_RETARD').length,
       icon: AlertTriangle,
     },
   ];
 
-  const recentEmprunts = mockEmprunts.slice(0, 5);
+  const recentEmprunts = emprunts.slice(0, 5);
 
   const columns = [
     {
@@ -57,6 +87,16 @@ const ResponsableDashboard: React.FC = () => {
       render: (emprunt: Emprunt) => <StatusBadge status={emprunt.status} />,
     },
   ];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -78,7 +118,6 @@ const ResponsableDashboard: React.FC = () => {
             title={stat.title}
             value={stat.value}
             icon={stat.icon}
-            trend={stat.trend}
             className="animate-fade-in"
             style={{ animationDelay: `${index * 100}ms` } as React.CSSProperties}
           />

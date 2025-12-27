@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -6,27 +6,56 @@ import { DataTable } from '@/components/common/DataTable';
 import { RoleBadge } from '@/components/common/StatusBadge';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Button } from '@/components/ui/button';
-import { mockUsers } from '@/data/mockData';
+import { usersAPI } from '@/lib/api';
 import { User } from '@/types';
-import { UserPlus, Pencil, Trash2 } from 'lucide-react';
+import { UserPlus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const UsersList: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; user: User | null }>({
     open: false,
     user: null,
   });
 
-  const handleDelete = () => {
-    if (deleteDialog.user) {
-      setUsers(users.filter((u) => u.id !== deleteDialog.user!.id));
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await usersAPI.getAll();
+      setUsers(response.data);
+    } catch (error) {
       toast({
-        title: 'User deleted',
-        description: `${deleteDialog.user.email} has been removed.`,
+        title: 'Error',
+        description: 'Failed to fetch users',
+        variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleteDialog.user) {
+      try {
+        await usersAPI.delete(deleteDialog.user.id);
+        setUsers(users.filter((u) => u.id !== deleteDialog.user!.id));
+        toast({
+          title: 'User deleted',
+          description: `${deleteDialog.user.email} has been removed.`,
+        });
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to delete user',
+          variant: 'destructive',
+        });
+      }
       setDeleteDialog({ open: false, user: null });
     }
   };
@@ -63,6 +92,16 @@ const UsersList: React.FC = () => {
       ),
     },
   ];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

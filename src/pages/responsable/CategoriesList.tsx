@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
@@ -12,14 +12,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { mockCategories } from '@/data/mockData';
+import { categoriesAPI } from '@/lib/api';
 import { Category } from '@/types';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const CategoriesList: React.FC = () => {
   const { toast } = useToast();
-  const [categories, setCategories] = useState(mockCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [formDialog, setFormDialog] = useState<{
     open: boolean;
     category: Category | null;
@@ -37,40 +39,77 @@ const CategoriesList: React.FC = () => {
     category: null,
   });
 
-  const handleSave = () => {
-    if (formDialog.category) {
-      // Edit
-      setCategories(
-        categories.map((c) =>
-          c.id === formDialog.category!.id ? { ...c, name: formDialog.name } : c
-        )
-      );
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await categoriesAPI.getAll();
+      setCategories(response.data);
+    } catch (error) {
       toast({
-        title: 'Category updated',
-        description: `Category "${formDialog.name}" has been updated.`,
+        title: 'Error',
+        description: 'Failed to fetch categories',
+        variant: 'destructive',
       });
-    } else {
-      // Create
-      const newCategory: Category = {
-        id: String(Date.now()),
-        name: formDialog.name,
-      };
-      setCategories([...categories, newCategory]);
-      toast({
-        title: 'Category created',
-        description: `Category "${formDialog.name}" has been created.`,
-      });
+    } finally {
+      setIsLoading(false);
     }
-    setFormDialog({ open: false, category: null, name: '' });
   };
 
-  const handleDelete = () => {
-    if (deleteDialog.category) {
-      setCategories(categories.filter((c) => c.id !== deleteDialog.category!.id));
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      if (formDialog.category) {
+        // Edit
+        await categoriesAPI.update(formDialog.category.id, { name: formDialog.name });
+        setCategories(
+          categories.map((c) =>
+            c.id === formDialog.category!.id ? { ...c, name: formDialog.name } : c
+          )
+        );
+        toast({
+          title: 'Category updated',
+          description: `Category "${formDialog.name}" has been updated.`,
+        });
+      } else {
+        // Create
+        const response = await categoriesAPI.create({ name: formDialog.name });
+        setCategories([...categories, response.data]);
+        toast({
+          title: 'Category created',
+          description: `Category "${formDialog.name}" has been created.`,
+        });
+      }
+      setFormDialog({ open: false, category: null, name: '' });
+    } catch (error) {
       toast({
-        title: 'Category deleted',
-        description: `"${deleteDialog.category.name}" has been removed.`,
+        title: 'Error',
+        description: `Failed to ${formDialog.category ? 'update' : 'create'} category`,
+        variant: 'destructive',
       });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleteDialog.category) {
+      try {
+        await categoriesAPI.delete(deleteDialog.category.id);
+        setCategories(categories.filter((c) => c.id !== deleteDialog.category!.id));
+        toast({
+          title: 'Category deleted',
+          description: `"${deleteDialog.category.name}" has been removed.`,
+        });
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to delete category',
+          variant: 'destructive',
+        });
+      }
       setDeleteDialog({ open: false, category: null });
     }
   };
@@ -104,6 +143,16 @@ const CategoriesList: React.FC = () => {
       ),
     },
   ];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -157,8 +206,15 @@ const CategoriesList: React.FC = () => {
             >
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!formDialog.name.trim()}>
-              {formDialog.category ? 'Update' : 'Create'}
+            <Button onClick={handleSave} disabled={!formDialog.name.trim() || isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                formDialog.category ? 'Update' : 'Create'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

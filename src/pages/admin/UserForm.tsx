@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mockUsers } from '@/data/mockData';
+import { usersAPI } from '@/lib/api';
 import { Role } from '@/types';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,7 @@ const UserForm: React.FC = () => {
   const isEditing = Boolean(id);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -32,32 +33,76 @@ const UserForm: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      const user = mockUsers.find((u) => u.id === id);
-      if (user) {
-        setFormData({
-          email: user.email,
-          password: '',
-          role: user.role,
-        });
-      }
+      fetchUser();
     }
   }, [id]);
+
+  const fetchUser = async () => {
+    setIsFetching(true);
+    try {
+      const response = await usersAPI.getById(id!);
+      const user = response.data;
+      setFormData({
+        email: user.email,
+        password: '',
+        role: user.role,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch user',
+        variant: 'destructive',
+      });
+      navigate('/admin/users');
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      if (isEditing) {
+        await usersAPI.update(id!, {
+          email: formData.email,
+          role: formData.role,
+        });
+      } else {
+        await usersAPI.create({
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+        });
+      }
 
-    toast({
-      title: isEditing ? 'User updated' : 'User created',
-      description: `${formData.email} has been ${isEditing ? 'updated' : 'created'} successfully.`,
-    });
+      toast({
+        title: isEditing ? 'User updated' : 'User created',
+        description: `${formData.email} has been ${isEditing ? 'updated' : 'created'} successfully.`,
+      });
 
-    setIsLoading(false);
-    navigate('/admin/users');
+      navigate('/admin/users');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} user`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  if (isFetching) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

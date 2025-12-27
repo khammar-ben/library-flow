@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -6,24 +6,45 @@ import { StatsCard } from '@/components/common/StatsCard';
 import { DataTable } from '@/components/common/DataTable';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
-import { mockBooks, mockEmprunts } from '@/data/mockData';
-import { useAuth } from '@/contexts/AuthContext';
-import { BookOpen, BookCopy, Clock, CheckCircle } from 'lucide-react';
-import { Emprunt } from '@/types';
+import { booksAPI, empruntsAPI } from '@/lib/api';
+import { BookOpen, BookCopy, Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { Emprunt, Book } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const ClientDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { toast } = useToast();
+  const [books, setBooks] = useState<Book[]>([]);
+  const [myEmprunts, setMyEmprunts] = useState<Emprunt[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Filter emprunts for current user
-  const myEmprunts = mockEmprunts.filter(
-    (e) => e.borrower.email === user?.email
-  );
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [booksRes, empruntsRes] = await Promise.all([
+        booksAPI.getAll(),
+        empruntsAPI.getMyEmprunts(),
+      ]);
+      setBooks(booksRes.data);
+      setMyEmprunts(empruntsRes.data);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch data',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const stats = [
     {
       title: 'Available Books',
-      value: mockBooks.filter((b) => b.available).length,
+      value: books.filter((b) => b.available).length,
       icon: BookOpen,
     },
     {
@@ -56,6 +77,16 @@ const ClientDashboard: React.FC = () => {
       render: (emprunt: Emprunt) => <StatusBadge status={emprunt.status} />,
     },
   ];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

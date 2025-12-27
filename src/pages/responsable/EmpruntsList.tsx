@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DataTable } from '@/components/common/DataTable';
@@ -11,36 +11,70 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mockEmprunts } from '@/data/mockData';
+import { empruntsAPI } from '@/lib/api';
 import { Emprunt, EmpruntStatus } from '@/types';
-import { CheckCircle, RotateCcw } from 'lucide-react';
+import { CheckCircle, RotateCcw, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const EmpruntsList: React.FC = () => {
   const { toast } = useToast();
-  const [emprunts, setEmprunts] = useState(mockEmprunts);
+  const [emprunts, setEmprunts] = useState<Emprunt[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<EmpruntStatus | 'ALL'>('ALL');
+
+  useEffect(() => {
+    fetchEmprunts();
+  }, []);
+
+  const fetchEmprunts = async () => {
+    try {
+      const response = await empruntsAPI.getAll();
+      setEmprunts(response.data);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch emprunts',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const filteredEmprunts = filter === 'ALL' 
     ? emprunts 
     : emprunts.filter(e => e.status === filter);
 
-  const handleStatusChange = (empruntId: string, newStatus: EmpruntStatus) => {
-    setEmprunts(
-      emprunts.map((e) =>
-        e.id === empruntId
-          ? {
-              ...e,
-              status: newStatus,
-              returnDate: newStatus === 'RETOURNE' ? new Date().toISOString().split('T')[0] : e.returnDate,
-            }
-          : e
-      )
-    );
-    toast({
-      title: 'Status updated',
-      description: `Emprunt status changed to ${newStatus}`,
-    });
+  const handleStatusChange = async (empruntId: string, newStatus: EmpruntStatus) => {
+    try {
+      if (newStatus === 'RETOURNE') {
+        await empruntsAPI.returnBook(empruntId);
+      } else {
+        await empruntsAPI.updateStatus(empruntId, newStatus);
+      }
+      
+      setEmprunts(
+        emprunts.map((e) =>
+          e.id === empruntId
+            ? {
+                ...e,
+                status: newStatus,
+                returnDate: newStatus === 'RETOURNE' ? new Date().toISOString().split('T')[0] : e.returnDate,
+              }
+            : e
+        )
+      );
+      toast({
+        title: 'Status updated',
+        description: `Emprunt status changed to ${newStatus}`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update status',
+        variant: 'destructive',
+      });
+    }
   };
 
   const columns = [
@@ -97,6 +131,16 @@ const EmpruntsList: React.FC = () => {
       ),
     },
   ];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
