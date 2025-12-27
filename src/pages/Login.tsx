@@ -28,20 +28,10 @@ const Login: React.FC = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    const success = await login(email, password);
-    
-    if (success) {
-      // Redirect will happen via useEffect
-    }
+    await login(email, password);
     
     setIsLoading(false);
   };
-
-  const demoCredentials = [
-    { email: 'admin@library.com', role: 'Admin' },
-    { email: 'librarian@library.com', role: 'Librarian' },
-    { email: 'client@library.com', role: 'Client' },
-  ];
 
   return (
     <div className="flex min-h-screen">
@@ -152,40 +142,6 @@ const Login: React.FC = () => {
                 )}
               </Button>
             </form>
-
-            {/* Demo Credentials */}
-            <div className="mt-8">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-border" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    Demo accounts
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                {demoCredentials.map((cred) => (
-                  <button
-                    key={cred.email}
-                    type="button"
-                    onClick={() => {
-                      setEmail(cred.email);
-                      setPassword('password123');
-                    }}
-                    className="flex w-full items-center justify-between rounded-lg border border-border bg-secondary/30 px-4 py-3 text-sm transition-colors hover:bg-secondary/50"
-                  >
-                    <span className="text-muted-foreground">{cred.email}</span>
-                    <span className="font-medium text-primary">{cred.role}</span>
-                  </button>
-                ))}
-              </div>
-              <p className="mt-3 text-center text-xs text-muted-foreground">
-                Password for all: <code className="rounded bg-secondary px-1.5 py-0.5">password123</code>
-              </p>
-            </div>
           </div>
         </div>
       </div>

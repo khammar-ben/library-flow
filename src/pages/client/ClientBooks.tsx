@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
@@ -12,14 +12,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mockBooks, mockCategories } from '@/data/mockData';
-import { Book } from '@/types';
-import { Search, BookOpen, User, Tag } from 'lucide-react';
+import { booksAPI, categoriesAPI, empruntsAPI } from '@/lib/api';
+import { Book, Category } from '@/types';
+import { Search, BookOpen, User, Tag, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const ClientBooks: React.FC = () => {
   const { toast } = useToast();
-  const [books] = useState(mockBooks);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isBorrowing, setIsBorrowing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
   const [borrowDialog, setBorrowDialog] = useState<{
@@ -30,24 +33,71 @@ const ClientBooks: React.FC = () => {
     book: null,
   });
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [booksRes, categoriesRes] = await Promise.all([
+        booksAPI.getAll(),
+        categoriesAPI.getAll(),
+      ]);
+      setBooks(booksRes.data);
+      setCategories(categoriesRes.data);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch books',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const filteredBooks = books.filter((book) => {
     const matchesSearch =
       book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       book.author.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory =
-      categoryFilter === 'ALL' || book.category.id === categoryFilter;
+      categoryFilter === 'ALL' || book.category?.id === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
-  const handleBorrow = () => {
+  const handleBorrow = async () => {
     if (borrowDialog.book) {
-      toast({
-        title: 'Book borrowed successfully',
-        description: `You have borrowed "${borrowDialog.book.title}".`,
-      });
-      setBorrowDialog({ open: false, book: null });
+      setIsBorrowing(true);
+      try {
+        await empruntsAPI.create(borrowDialog.book.id);
+        toast({
+          title: 'Book borrowed successfully',
+          description: `You have borrowed "${borrowDialog.book.title}".`,
+        });
+        // Refresh books to update availability
+        fetchData();
+      } catch (error: any) {
+        toast({
+          title: 'Error',
+          description: error.response?.data?.message || 'Failed to borrow book',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsBorrowing(false);
+        setBorrowDialog({ open: false, book: null });
+      }
     }
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -73,7 +123,7 @@ const ClientBooks: React.FC = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Categories</SelectItem>
-            {mockCategories.map((category) => (
+            {categories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.name}
               </SelectItem>
@@ -111,7 +161,7 @@ const ClientBooks: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Tag className="h-3.5 w-3.5 text-muted-foreground" />
                 <Badge variant="secondary" className="text-xs">
-                  {book.category.name}
+                  {book.category?.name || 'Uncategorized'}
                 </Badge>
               </div>
 
@@ -143,7 +193,7 @@ const ClientBooks: React.FC = () => {
         onOpenChange={(open) => setBorrowDialog({ open, book: null })}
         title="Borrow Book"
         description={`Are you sure you want to borrow "${borrowDialog.book?.title}"?`}
-        confirmLabel="Borrow"
+        confirmLabel={isBorrowing ? 'Borrowing...' : 'Borrow'}
         onConfirm={handleBorrow}
       />
     </DashboardLayout>

@@ -1,43 +1,65 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/common/PageHeader';
 import { StatsCard } from '@/components/common/StatsCard';
 import { DataTable } from '@/components/common/DataTable';
 import { RoleBadge } from '@/components/common/StatusBadge';
 import { Button } from '@/components/ui/button';
-import { mockUsers } from '@/data/mockData';
-import { Users, UserPlus, Shield, UserCheck } from 'lucide-react';
+import { usersAPI } from '@/lib/api';
+import { Users, UserPlus, Shield, UserCheck, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await usersAPI.getAll();
+      setUsers(response.data);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch users',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const stats = [
     {
       title: 'Total Users',
-      value: mockUsers.length,
+      value: users.length,
       icon: Users,
-      trend: { value: 12, isPositive: true },
     },
     {
       title: 'Admins',
-      value: mockUsers.filter((u) => u.role === 'ADMIN').length,
+      value: users.filter((u) => u.role === 'ADMIN').length,
       icon: Shield,
     },
     {
       title: 'Librarians',
-      value: mockUsers.filter((u) => u.role === 'RESPONSABLE').length,
+      value: users.filter((u) => u.role === 'RESPONSABLE').length,
       icon: UserCheck,
     },
     {
       title: 'Clients',
-      value: mockUsers.filter((u) => u.role === 'CLIENT').length,
+      value: users.filter((u) => u.role === 'CLIENT').length,
       icon: Users,
     },
   ];
 
-  const recentUsers = mockUsers.slice(0, 5);
+  const recentUsers = users.slice(0, 5);
 
   const columns = [
     { key: 'email', header: 'Email' },
@@ -47,6 +69,16 @@ const AdminDashboard: React.FC = () => {
       render: (user: User) => <RoleBadge role={user.role} />,
     },
   ];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -68,7 +100,6 @@ const AdminDashboard: React.FC = () => {
             title={stat.title}
             value={stat.value}
             icon={stat.icon}
-            trend={stat.trend}
             className="animate-fade-in"
             style={{ animationDelay: `${index * 100}ms` } as React.CSSProperties}
           />

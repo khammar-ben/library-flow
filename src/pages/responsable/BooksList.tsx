@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -6,27 +6,56 @@ import { DataTable } from '@/components/common/DataTable';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { mockBooks } from '@/data/mockData';
+import { booksAPI } from '@/lib/api';
 import { Book } from '@/types';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const BooksList: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [books, setBooks] = useState(mockBooks);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; book: Book | null }>({
     open: false,
     book: null,
   });
 
-  const handleDelete = () => {
-    if (deleteDialog.book) {
-      setBooks(books.filter((b) => b.id !== deleteDialog.book!.id));
+  useEffect(() => {
+    fetchBooks();
+  }, []);
+
+  const fetchBooks = async () => {
+    try {
+      const response = await booksAPI.getAll();
+      setBooks(response.data);
+    } catch (error) {
       toast({
-        title: 'Book deleted',
-        description: `"${deleteDialog.book.title}" has been removed.`,
+        title: 'Error',
+        description: 'Failed to fetch books',
+        variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleteDialog.book) {
+      try {
+        await booksAPI.delete(deleteDialog.book.id);
+        setBooks(books.filter((b) => b.id !== deleteDialog.book!.id));
+        toast({
+          title: 'Book deleted',
+          description: `"${deleteDialog.book.title}" has been removed.`,
+        });
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to delete book',
+          variant: 'destructive',
+        });
+      }
       setDeleteDialog({ open: false, book: null });
     }
   };
@@ -38,7 +67,7 @@ const BooksList: React.FC = () => {
       key: 'category',
       header: 'Category',
       render: (book: Book) => (
-        <Badge variant="secondary">{book.category.name}</Badge>
+        <Badge variant="secondary">{book.category?.name || 'N/A'}</Badge>
       ),
     },
     { key: 'quantity', header: 'Quantity' },
@@ -75,6 +104,16 @@ const BooksList: React.FC = () => {
       ),
     },
   ];
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

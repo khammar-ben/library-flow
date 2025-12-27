@@ -13,7 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { mockBooks, mockCategories } from '@/data/mockData';
+import { booksAPI, categoriesAPI } from '@/lib/api';
+import { Category } from '@/types';
 import { ArrowLeft, Save, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -24,6 +25,8 @@ const BookForm: React.FC = () => {
   const isEditing = Boolean(id);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     title: '',
     author: '',
@@ -33,35 +36,86 @@ const BookForm: React.FC = () => {
   });
 
   useEffect(() => {
+    fetchCategories();
     if (id) {
-      const book = mockBooks.find((b) => b.id === id);
-      if (book) {
-        setFormData({
-          title: book.title,
-          author: book.author,
-          description: book.description,
-          quantity: book.quantity,
-          categoryId: book.category.id,
-        });
-      }
+      fetchBook();
     }
   }, [id]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await categoriesAPI.getAll();
+      setCategories(response.data);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch categories',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchBook = async () => {
+    setIsFetching(true);
+    try {
+      const response = await booksAPI.getById(id!);
+      const book = response.data;
+      setFormData({
+        title: book.title,
+        author: book.author,
+        description: book.description,
+        quantity: book.quantity,
+        categoryId: book.category?.id || '',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch book',
+        variant: 'destructive',
+      });
+      navigate('/responsable/books');
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      if (isEditing) {
+        await booksAPI.update(id!, formData);
+      } else {
+        await booksAPI.create(formData);
+      }
 
-    toast({
-      title: isEditing ? 'Book updated' : 'Book created',
-      description: `"${formData.title}" has been ${isEditing ? 'updated' : 'added'} successfully.`,
-    });
+      toast({
+        title: isEditing ? 'Book updated' : 'Book created',
+        description: `"${formData.title}" has been ${isEditing ? 'updated' : 'added'} successfully.`,
+      });
 
-    setIsLoading(false);
-    navigate('/responsable/books');
+      navigate('/responsable/books');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.message || `Failed to ${isEditing ? 'update' : 'create'} book`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  if (isFetching) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -139,7 +193,7 @@ const BookForm: React.FC = () => {
                   <SelectValue placeholder="Select a category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockCategories.map((category) => (
+                  {categories.map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
                     </SelectItem>
