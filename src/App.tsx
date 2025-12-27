@@ -75,11 +75,11 @@ const App = () => (
               }
             />
 
-            {/* Responsable Routes */}
+            {/* Responsable Routes - Admin can also access */}
             <Route
               path="/responsable"
               element={
-                <ProtectedRoute allowedRoles={["RESPONSABLE"]}>
+                <ProtectedRoute allowedRoles={["RESPONSABLE", "ADMIN"]}>
                   <ResponsableDashboard />
                 </ProtectedRoute>
               }
@@ -87,7 +87,7 @@ const App = () => (
             <Route
               path="/responsable/books"
               element={
-                <ProtectedRoute allowedRoles={["RESPONSABLE"]}>
+                <ProtectedRoute allowedRoles={["RESPONSABLE", "ADMIN"]}>
                   <BooksList />
                 </ProtectedRoute>
               }
@@ -95,7 +95,7 @@ const App = () => (
             <Route
               path="/responsable/books/create"
               element={
-                <ProtectedRoute allowedRoles={["RESPONSABLE"]}>
+                <ProtectedRoute allowedRoles={["RESPONSABLE", "ADMIN"]}>
                   <BookForm />
                 </ProtectedRoute>
               }
@@ -103,7 +103,7 @@ const App = () => (
             <Route
               path="/responsable/books/edit/:id"
               element={
-                <ProtectedRoute allowedRoles={["RESPONSABLE"]}>
+                <ProtectedRoute allowedRoles={["RESPONSABLE", "ADMIN"]}>
                   <BookForm />
                 </ProtectedRoute>
               }
@@ -111,7 +111,7 @@ const App = () => (
             <Route
               path="/responsable/categories"
               element={
-                <ProtectedRoute allowedRoles={["RESPONSABLE"]}>
+                <ProtectedRoute allowedRoles={["RESPONSABLE", "ADMIN"]}>
                   <CategoriesList />
                 </ProtectedRoute>
               }
@@ -119,17 +119,17 @@ const App = () => (
             <Route
               path="/responsable/emprunts"
               element={
-                <ProtectedRoute allowedRoles={["RESPONSABLE"]}>
+                <ProtectedRoute allowedRoles={["RESPONSABLE", "ADMIN"]}>
                   <EmpruntsList />
                 </ProtectedRoute>
               }
             />
 
-            {/* Client Routes */}
+            {/* Client Routes - Admin can also access */}
             <Route
               path="/client"
               element={
-                <ProtectedRoute allowedRoles={["CLIENT"]}>
+                <ProtectedRoute allowedRoles={["CLIENT", "ADMIN"]}>
                   <ClientDashboard />
                 </ProtectedRoute>
               }
@@ -137,7 +137,7 @@ const App = () => (
             <Route
               path="/client/books"
               element={
-                <ProtectedRoute allowedRoles={["CLIENT"]}>
+                <ProtectedRoute allowedRoles={["CLIENT", "ADMIN"]}>
                   <ClientBooks />
                 </ProtectedRoute>
               }
@@ -145,7 +145,7 @@ const App = () => (
             <Route
               path="/client/emprunts"
               element={
-                <ProtectedRoute allowedRoles={["CLIENT"]}>
+                <ProtectedRoute allowedRoles={["CLIENT", "ADMIN"]}>
                   <ClientEmprunts />
                 </ProtectedRoute>
               }

@@ -20,9 +20,13 @@ interface NavItem {
   icon: React.ElementType;
 }
 
+// Admin gets all navigation items
 const adminNavItems: NavItem[] = [
-  { label: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+  { label: 'Admin Dashboard', path: '/admin', icon: LayoutDashboard },
   { label: 'Users', path: '/admin/users', icon: Users },
+  { label: 'Books', path: '/responsable/books', icon: BookOpen },
+  { label: 'Categories', path: '/responsable/categories', icon: FolderOpen },
+  { label: 'Emprunts', path: '/responsable/emprunts', icon: ClipboardList },
 ];
 
 const responsableNavItems: NavItem[] = [
